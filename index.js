@@ -58,7 +58,7 @@ const ExcelLib = {
   init: async (config) => {
     const stream = await ExcelLib.Multi.init(config);
     const origin = {
-      end : stream.end
+      end: stream.end
     };
     stream.end = async function end(...args) {
       const files = await origin.end(...args);
@@ -69,10 +69,10 @@ const ExcelLib = {
   },
 
   Multi: {
-    init: async ({ dir, fileName, workbook = {}, worksheet = {}, skipError = false, cloudAPI = 'export', autoDestroy = true, options }) => {
+    init: async ({ host, dir, fileName, workbook = {}, worksheet = {}, skipError = false, cloudAPI = 'export', autoDestroy = true, options }) => {
       await fse.ensureDir(dir);
       workbook.options = { useStyles: false, ...workbook.options };
-  
+
       const Private = {
         eventHandlers: {
           error: [error => {
@@ -82,18 +82,19 @@ const ExcelLib = {
             }
           }]
         },
-        fileName, dir, cloudAPI, workbook, skipError, autoDestroy,
+        fileName, host, dir, cloudAPI, workbook, skipError, autoDestroy,
         writeCount: 0,
         files: [],
         curFile: null,
         worksheet: { name: 'Sheet 1', ...worksheet },
         createFile: () => {
           const fileName = Private.fileName.replace('{i}', Private.files.length + 1);
-  
+
           const filePath = path.join(path.resolve(dir), fileName);
 
-          const downloadLink = (config.downloadLink + '/' + path.join(Private.dir, fileName)).replace(/\\+/g, '/');
-  
+          let downloadLink = (path.join(Private.dir, fileName)).replace(/\\+/g, '/');
+          if (host) { downloadLink = `${host}/${downloadLink}` }
+
           const stream = fse.createWriteStream(filePath, options);
 
           Private.addEventHandlers(stream);
@@ -118,7 +119,7 @@ const ExcelLib = {
           }
         }
       }
-  
+
       const Public = {
         write: (row) => {
           if (false) {
@@ -132,9 +133,9 @@ const ExcelLib = {
           }
 
           Private.curFile.worksheet.addRow(row).commit();
-  
+
           Private.writeCount++;
-  
+
           return Public;
         },
         on(event, handler) {
@@ -142,7 +143,7 @@ const ExcelLib = {
             Private.eventHandlers[event] = [];
           }
           Private.eventHandlers[event].push(handler);
-    
+
           return Public;
         },
         end: () => {
@@ -151,7 +152,7 @@ const ExcelLib = {
           }
 
           if (Private.cloudAPI) {
-  
+
           }
           return Private.files;
         },
@@ -211,10 +212,10 @@ const test = {
       },
       limit: 1000
     });
-    
+
     await excel.write({ sku: 'test', name: 'san pham 1', price: 100000, created_at: 100000 });
     await excel.write({ sku: 'test2', name: 'san pham 2', price: 200000, created_at: 100000 });
-    
+
     const { downloadLink } = await excel.end();
     console.log(downloadLink)
   }
